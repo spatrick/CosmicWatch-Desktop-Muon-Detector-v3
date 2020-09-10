@@ -1,0 +1,3 @@
+Full image size:
+x = 138.3892 mm
+y = 80.6122 mm
