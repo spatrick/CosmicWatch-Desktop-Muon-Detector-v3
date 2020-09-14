@@ -1,9 +1,16 @@
+// Tools-> Board = Teensy 4.0
+// Tools-> Port = Select the port corresponding to where the detector is plugged in.
+// Libraries needed. Go to Sketch->Include Libraries-> Manage Libraries and install:
+//   1. Adafruit_SSD1306
+//   2. Adafruit_BMP280
+//   3. SDFat
+
 int SIGNAL_THRESHOLD              = 200;          // The number of HGain ADC counts above the baseline before triggering
 int RESET_THRESHOLD               = 20;           // Number of ADC counts above the baseline before resetting the trigger
 const boolean OLED                = true;         // Turn on/off OLED. 
 const int LED_BRIGHTNESS          = 255;          // Brightness of the 5mm LED [0,255]
 const int LED_BRIGHTNESS_SMALL    = 255;          // Brightness of the 3mm LED [0,255]
-const boolean SAVE_ALL_EVENTS     = false;        // Do you want to save all events? Set to false if you only want to save muons.
+const boolean SAVE_ALL_EVENTS     = true;        // Do you want to save all events? Set to false if you only want to save muons.
 
 // Set these to false to turn off noise.
 const boolean PLAYSTARTMUSIC      = false;         // Play music during startup
@@ -12,7 +19,7 @@ const boolean PLAYEVENTNOISE      = false;         // Make a noise during an eve
 int SHIFT_HOUR                    = 1;            // The realtime clock  doesn't understand daylight savings, sometimes you have to shift the hour.
 
 const boolean RESET_DETECTOR_NAME = true;        // Do you want to update the name of the detector?
-String desired_detector_name      = "Sylvester";     // If so, then to what?
+String desired_detector_name      = "Vera";     // If so, then to what?
 
 // You don't need this.
 const boolean CALIBRATE           = false;        // Do you want to calibrate the detector? 
@@ -167,6 +174,10 @@ void setup() {
   // Start the USB serial communication 
   Serial.begin(115200);
 
+  // Setup the LED to output a flash when an event triggers.
+  pinMode(led_pin, OUTPUT);
+  pinMode(led_pin_small, OUTPUT);
+  
   
   // if RESET_DETECTOR_NAME, this will rename the detector. You have to then change RESET_DETECTOR_NAME to false.
   if (RESET_DETECTOR_NAME){
@@ -183,11 +194,7 @@ void setup() {
   check_for_coincident_detector(); 
 
   
-  // Setup the LED to output a flash when an event triggers.
-  pinMode(led_pin, OUTPUT);
-  pinMode(led_pin_small, OUTPUT);
-  
-  
+
   // Look for the SD Card
   pinMode(SD_sense_pin, INPUT_PULLUP);
 
@@ -604,7 +611,14 @@ void print_data_to_microSD()
 
 void update_OLED()
 {
-  
+
+  String message = "";
+  message = Serial.readString();
+  if (message == "reset"){
+    soft_restart();
+    }
+
+     
   unsigned long int t1 = micros();
   if (OLED){
     int NCounts;
