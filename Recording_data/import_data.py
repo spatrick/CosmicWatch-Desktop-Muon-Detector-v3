@@ -21,7 +21,7 @@ import socket
 import multiprocessing
 import math
 import random
-import thread
+#import thread
 import serial 
 import time
 
@@ -153,7 +153,7 @@ print("[3] Remove files from SD card")
 print("[4] Connect to server: www.cosmicwatch.lns.mit.edu")
 print("[h] Help")
 
-mode = str(raw_input("\nSelected operation: "))
+mode = str(input("\nSelected operation: "))
 
 if mode == 'h':
     print_help1()
@@ -178,7 +178,7 @@ for i in range(len(port_list)):
     print('['+str(i+1)+'] ' + str(port_list[i]))
 print('[h] help\n')
 
-ArduinoPort = raw_input("Selected Arduino port: ")
+ArduinoPort = input("Selected Arduino port: ")
 
 ArduinoPort = ArduinoPort.split(',')
 nDetectors = len(ArduinoPort)
@@ -206,13 +206,13 @@ for i in range(nDetectors):
 
 if mode == 1:
     cwd = os.getcwd()
-    fname = raw_input("Enter file name (default: "+cwd+"/CW_data.txt):")
+    fname = input("Enter file name (default: "+cwd+"/CW_data.txt):")
     detector_name_list = []
     if fname == '':
         fname = cwd+"/CW_data.txt"
 
     print('Saving data to: '+fname)
-    ComPort_list = np.ones(nDetectors)
+    #ComPort_list = np.ones(nDetectors)
 
     for i in range(nDetectors):
         s = serial.Serial(str(port_name_list[i]))
@@ -249,7 +249,9 @@ if mode == 1:
         detector_name_list.append(det_name)    # Wait and read data 
         '''
 
-    file = open(fname, "w",0)
+    #file = open(fname, "w",0)
+    file = open(fname, "w")
+
     #for i in range(len(headers)):
     #    file.write(headers[i])
     
@@ -278,17 +280,19 @@ if mode == 1:
     while True:
         for i in range(nDetectors):
             if globals()['Det%s' % str(i)].inWaiting():
-                data = globals()['Det%s' % str(i)].readline().replace('\r\n','')    # Wait and read data 
-                data = data.split('\t')
+
+                data = globals()['Det%s' % str(i)].readline().decode().replace('\r\n','')    # Wait and read data 
+                data = data.split("\t")
+                #print(data)
                 ti = str(datetime.now()).split(" ")
                 data[1] = ti[-1]
                 data[2] = ti[0].replace('-','/')
                 #file.write(str(datetime.now())+" "+data+" "+detector_name_list[i]+'\n')
-                for j in range(len(data)):
+                for j in range(len(data)-1):
                     file.write(data[j]+'\t')
                 #file.write("\t"+detector_name_list[i]+'\n')
                 file.write("\n")
-                globals()['Det%s' % str(i)].write('got-it') 
+                #globals()['Det%s' % str(i)].write('got-it') 
 
     for i in range(nDetectors):
             globals()['Det%s' % str(i)].close()     
