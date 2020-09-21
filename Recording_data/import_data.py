@@ -107,10 +107,11 @@ def checkQueue():
  
 
 def signal_handler(signal, frame):
-        print('You pressed Ctrl+C!')
-        ComPort.close()     
-        file.close() 
-        sys.exit(0)
+    print('You pressed Ctrl+C!')
+    ComPort.close()     
+    file.close() 
+    sys.exit(0)
+
 def serial_ports():
     """ Lists serial port names
 
@@ -159,18 +160,18 @@ if mode == 'h':
     sys.exit()
 
 else:
-	mode = int(mode)
-	if mode not in [1,2,3,4]:
-		print('-- Error --')
-		print('Invalid selection')
-		print('Exiting...')
-		sys.exit()
+    mode = int(mode)
+    if mode not in [1,2,3,4]:
+        print('-- Error --')
+        print('Invalid selection')
+        print('Exiting...')
+        sys.exit()
 
 t1 = time.time()
 port_list = serial_ports()
 t2 = time.time()
 if (t2-t1)>2:
-	print('Listing ports is taking unusually long. Try disabling your Bluetooth.')
+    print('Listing ports is taking unusually long. Try disabling your Bluetooth.')
 
 print('Available serial ports:')
 for i in range(len(port_list)):
@@ -183,12 +184,12 @@ ArduinoPort = ArduinoPort.split(',')
 nDetectors = len(ArduinoPort)
 
 if mode in [2,3,4]:
-	if len(ArduinoPort) > 1:
-		print('--- Error ---')
-		print('You selected multiple detectors.')
-		print('This options is only compatible when recording to the computer.')
-		print('Exiting...')
-		sys.exit()
+    if len(ArduinoPort) > 1:
+        print('--- Error ---')
+        print('You selected multiple detectors.')
+        print('This options is only compatible when recording to the computer.')
+        print('Exiting...')
+        sys.exit()
 
 port_name_list = []
 
@@ -204,215 +205,94 @@ for i in range(nDetectors):
 	print('\t['+str(ArduinoPort[i])+']' +port_name_list[i])
 
 if mode == 1:
-	cwd = os.getcwd()
-	fname = raw_input("Enter file name (default: "+cwd+"/CW_data.txt):")
-	detector_name_list = []
-	if fname == '':
-	    fname = cwd+"/CW_data.txt"
+    cwd = os.getcwd()
+    fname = raw_input("Enter file name (default: "+cwd+"/CW_data.txt):")
+    detector_name_list = []
+    if fname == '':
+        fname = cwd+"/CW_data.txt"
 
-	print('Saving data to: '+fname)
-	ComPort_list = np.ones(nDetectors)
+    print('Saving data to: '+fname)
+    ComPort_list = np.ones(nDetectors)
 
-	for i in range(nDetectors):
-            s = serial.Serial(str(port_name_list[i]))
-            #s = signal.signal(signal.SIGINT, signal_handler)
-            #serial.Serial(str(port_name_list[i])).write("reset") 
-            #s.setDTR(True)
-            print("Reseting detector...")
-            #time.sleep(4)
-            #s.flushInput()
-            #s.setDTR(False)
-            signal.signal(signal.SIGINT, signal_handler)
-            globals()['Det%s' % str(i)] = serial.Serial(str(port_name_list[i]))
-            globals()['Det%s' % str(i)].baudrate = 115200    
-            globals()['Det%s' % str(i)].bytesize = 8             # Number of data bits = 8
-            globals()['Det%s' % str(i)].parity   = 'N'           # No parity
-            globals()['Det%s' % str(i)].stopbits = 1 
-
-            time.sleep(1)
-            #globals()['Det%s' % str(i)].write('write')  
-            #globals()['Det%s' % str(i)].write("reset")
-            #counter = 0
-
-            #headers = []
-            '''
-            while (True):
-                header = globals()['Det%s' % str(i)].readline()     # Wait and read data 
-                if "###" in header:
-                    headers.append(header)
-                if "#" not in header:
-                    break
-                if 'Device ID: ' in header:
-                    det_name = header.split('Device ID: ')[-1]
-
-            detector_name_list.append(det_name)    # Wait and read data 
-            '''
-
-	file = open(fname, "w",0)
-        #for i in range(len(headers)):
-        #    file.write(headers[i])
-        
-	#string_of_names = ''
-	print("\n-- Detector Names --")
-	#print(detector_name_list)
-	'''
-        for i in range(len(detector_name_list)):
-		print(detector_name_list[i])
-		if '\xff' in detector_name_list[i] or '?' in detector_name_list[i] :
-			print('--- Error ---')
-			print('You should name your CosmicWatch Detector first.')
-			print('Simply change the DetName variable in the Naming.ino script,')
-			print('and upload the code to your Arduino.')
-			print('Exiting ...')
-        '''
-	print("\nTaking data ...")
-	print("Press ctl+c to terminate process")
-        '''
-	if nDetectors>1:
-		for i in range(nDetectors):
-			string_of_names += detector_name_list[i] +', '
-	else:
-		string_of_names+=detector_name_list[0]
-        '''
-	while True:
-	    for i in range(nDetectors):
-                if globals()['Det%s' % str(i)].inWaiting():
-                    data = globals()['Det%s' % str(i)].readline().replace('\r\n','')    # Wait and read data 
-                    data = data.split('\t')
-                    ti = str(datetime.now()).split(" ")
-                    data[1] = ti[-1]
-                    data[2] = ti[0].replace('-','/')
-                    #file.write(str(datetime.now())+" "+data+" "+detector_name_list[i]+'\n')
-                    for j in range(len(data)):
-                        file.write(data[j]+'\t')
-                    #file.write("\t"+detector_name_list[i]+'\n')
-                    file.write("\n")
-                    globals()['Det%s' % str(i)].write('got-it') 
-
-	for i in range(nDetectors):
-		globals()['Det%s' % str(i)].close()     
-	file.close()  
-
-if mode == 2:
-	
-	cwd = os.getcwd()
-	dir_path = raw_input("\nEnter location to save SD data (default: "+cwd+"/SDFiles):")
-	if dir_path == '':
-		dir_path = cwd+"/SDFiles"
-	
-	if not os.path.exists(dir_path):
-		os.makedirs(dir_path)
-
-
-	signal.signal(signal.SIGINT, signal_handler)
-	ComPort = serial.Serial(port_name_list[0]) # open the COM Port
-	ComPort.baudrate = 9600            # set Baud rate
-	ComPort.bytesize = 8               # Number of data bits = 8
-	ComPort.parity   = 'N'             # No parity
-	ComPort.stopbits = 1 
-
-	if ComPort.readline().strip() == 'CosmicWatchDetector':
-		time.sleep(1)
-		detector_name = ComPort.readline()
-		
-		print('\n-- Detector Name --')
-		print(detector_name)
-
-		ComPort.write("read") 
-		counter = 0
-
-
-		while True:
-			data = ComPort.readline()    # Wait and read data 
-			#print(data)
-			if 'Done' in data:
-			    ComPort.close() 
-			    sys.exit() 
-			elif 'opening:' in data:
-			    fname = dir_path + '/' + data.split(' ')[-1].split('.txt')[0]+'.txt'
-			    
-			    print("Saving to: "+ fname)
-			    file = open(fname, "w",0)
-			    counter = 0
-
-
-			elif 'EOF' in data:
-			    file.close() 
-
-			else:
-			    file.write(data)
-			    counter +=1
-   
-	else:
-		print('--- Error ---')
-		print('You are trying to read from the SD card.')
-		print('Have you uploaded SDCard.ino to the Arduino?')
-		print('Is there a microSD card inserted into the detector?')
-		print('Exiting ...')
-		sys.exit()
-
-if mode == 3:
-    print("\nAre you sure that you want to remove all files from SD card?")
-    ans = raw_input("Type y or n: ")
-    if ans == 'y' or ans == 'yes' or ans == 'Y' or ans == 'YES':
+    for i in range(nDetectors):
+        s = serial.Serial(str(port_name_list[i]))
+        #s = signal.signal(signal.SIGINT, signal_handler)
+        #serial.Serial(str(port_name_list[i])).write("reset") 
+        #s.setDTR(True)
+        print("Reseting detector...")
+        #time.sleep(4)
+        #s.flushInput()
+        #s.setDTR(False)
         signal.signal(signal.SIGINT, signal_handler)
-        ComPort = serial.Serial(port_name_list[0]) # open the COM Port
-        ComPort.baudrate = 9600          # set Baud rate
-        ComPort.bytesize = 8             # Number of data bits = 8
-        ComPort.parity   = 'N'           # No parity
-        ComPort.stopbits = 1 
+        globals()['Det%s' % str(i)] = serial.Serial(str(port_name_list[i]))
+        globals()['Det%s' % str(i)].baudrate = 115200    
+        globals()['Det%s' % str(i)].bytesize = 8             # Number of data bits = 8
+        globals()['Det%s' % str(i)].parity   = 'N'           # No parity
+        globals()['Det%s' % str(i)].stopbits = 1 
 
-        if ComPort.readline().strip() == 'CosmicWatchDetector':
-            time.sleep(1)
-            ComPort.write("remove")   
-            while True:
-                data = ComPort.readline()    # Wait and read data 
-                print(data)
-                if data == 'Done...\r\n':
-                    print("Finished deleting files.")
-                    break
-            ComPort.close()     
-            sys.exit()
+        time.sleep(1)
+        #globals()['Det%s' % str(i)].write('write')  
+        #globals()['Det%s' % str(i)].write("reset")
+        #counter = 0
 
-        else:
-            print('--- Error ---')
-            print('You are trying to remove files from the microSD card.')
-            print('Is there an SD card inserted?')
-            print('Do you have the correct code on the Arduino? SDCard.ino')
-            print('Exiting ...')
-            sys.exit()
+        #headers = []
+        '''
+        while (True):
+            header = globals()['Det%s' % str(i)].readline()     # Wait and read data 
+            if "###" in header:
+                headers.append(header)
+            if "#" not in header:
+                break
+            if 'Device ID: ' in header:
+                det_name = header.split('Device ID: ')[-1]
 
+        detector_name_list.append(det_name)    # Wait and read data 
+        '''
+
+    file = open(fname, "w",0)
+    #for i in range(len(headers)):
+    #    file.write(headers[i])
+    
+    #string_of_names = ''
+    print("\n-- Detector Names --")
+    #print(detector_name_list)
+    '''
+    for i in range(len(detector_name_list)):
+            print(detector_name_list[i])
+            if '\xff' in detector_name_list[i] or '?' in detector_name_list[i] :
+                    print('--- Error ---')
+                    print('You should name your CosmicWatch Detector first.')
+                    print('Simply change the DetName variable in the Naming.ino script,')
+                    print('and upload the code to your Arduino.')
+                    print('Exiting ...')
+    '''
+    print("\nTaking data ...")
+    print("Press ctl+c to terminate process")
+    '''
+    if nDetectors>1:
+            for i in range(nDetectors):
+                    string_of_names += detector_name_list[i] +', '
     else:
-        print("Exiting ...")
-        sys.exit()
+            string_of_names+=detector_name_list[0]
+    '''
+    while True:
+        for i in range(nDetectors):
+            if globals()['Det%s' % str(i)].inWaiting():
+                data = globals()['Det%s' % str(i)].readline().replace('\r\n','')    # Wait and read data 
+                data = data.split('\t')
+                ti = str(datetime.now()).split(" ")
+                data[1] = ti[-1]
+                data[2] = ti[0].replace('-','/')
+                #file.write(str(datetime.now())+" "+data+" "+detector_name_list[i]+'\n')
+                for j in range(len(data)):
+                    file.write(data[j]+'\t')
+                #file.write("\t"+detector_name_list[i]+'\n')
+                file.write("\n")
+                globals()['Det%s' % str(i)].write('got-it') 
 
-if mode == 4:
-    bg = DataCollectionProcess(queue) 
-    #bg.daemon = True
-    #bg.start()
-    thread.start_new_thread(RUN,(bg,)) 
-    #p=multiprocessing.Process(target=RUN)
-    #p.start()
-    #server stuff
-    application = tornado.web.Application(
-        handlers=[(r'/', WSHandler)]
-    )
-    http_server = tornado.httpserver.HTTPServer(application)
-    port = 9090
-    http_server.listen(port)
-    myIP = socket.gethostbyname(socket.gethostname())
-    print('CosmicWatch detector server started at %s:%d' % (myIP, port))
-    print('You can now connect to your device using http://cosmicwatch.lns.mit.edu/')
-    mainLoop = tornado.ioloop.IOLoop.instance()
-    #in the main loop fire queue check each 100ms
-    try:
-    	scheduler = tornado.ioloop.PeriodicCallback(checkQueue, 100, io_loop = mainLoop)
-    except:
-    	# io_loop arguement was removed in version 5.x of Tornado.
-    	scheduler = tornado.ioloop.PeriodicCallback(checkQueue, 100)
-    scheduler.start()
-    #start the loop
-    mainLoop.start()
+    for i in range(nDetectors):
+            globals()['Det%s' % str(i)].close()     
+    file.close()  
 
 
 
