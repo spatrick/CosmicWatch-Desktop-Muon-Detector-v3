@@ -67,7 +67,7 @@ class DataCollectionProcess(multiprocessing.Process):
         return -math.log(1.0 - random.random()) / rate
 
 def RUN(bg):
-    print 'Running...'
+    print('Running...')
     while True:
         data = bg.comport.readline()
         bg.queue.put(str(datetime.now())+" "+data)
@@ -78,12 +78,11 @@ class WSHandler(tornado.websocket.WebSocketHandler):
         self.sending = False
 
     def open(self):
-        print 'New connection opened from ' + self.request.remote_ip
+        print('New connection opened from ' + self.request.remote_ip)
         clients.append(self)
-        print '%d clients connected' % len(clients)
-      
+        print('%d clients connected' % len(clients))
     def on_message(self, message):
-        print 'message received:  %s' % message
+        print('message received:  %s' % message)
         if message == 'StartData':
             self.sending = True
         if message == 'StopData':
@@ -92,8 +91,8 @@ class WSHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         self.sending = False
         clients.remove(self)
-        print 'Connection closed from ' + self.request.remote_ip
-        print '%d clients connected' % len(clients)
+        print('Connection closed from ' + self.request.remote_ip)
+        print('%d clients connected' % len(clients))
  
     def check_origin(self, origin):
         return True
@@ -215,39 +214,39 @@ if mode == 1:
 	ComPort_list = np.ones(nDetectors)
 
 	for i in range(nDetectors):
-                s = serial.Serial(str(port_name_list[i]))
-                #s = signal.signal(signal.SIGINT, signal_handler)
-                #serial.Serial(str(port_name_list[i])).write("reset") 
-                #s.setDTR(True)
-                print("Reseting detector...")
-                #time.sleep(4)
-                #s.flushInput()
-                #s.setDTR(False)
-                signal.signal(signal.SIGINT, signal_handler)
-		globals()['Det%s' % str(i)] = serial.Serial(str(port_name_list[i]))
-		globals()['Det%s' % str(i)].baudrate = 115200    
-		globals()['Det%s' % str(i)].bytesize = 8             # Number of data bits = 8
-		globals()['Det%s' % str(i)].parity   = 'N'           # No parity
-		globals()['Det%s' % str(i)].stopbits = 1 
+            s = serial.Serial(str(port_name_list[i]))
+            #s = signal.signal(signal.SIGINT, signal_handler)
+            #serial.Serial(str(port_name_list[i])).write("reset") 
+            #s.setDTR(True)
+            print("Reseting detector...")
+            #time.sleep(4)
+            #s.flushInput()
+            #s.setDTR(False)
+            signal.signal(signal.SIGINT, signal_handler)
+            globals()['Det%s' % str(i)] = serial.Serial(str(port_name_list[i]))
+            globals()['Det%s' % str(i)].baudrate = 115200    
+            globals()['Det%s' % str(i)].bytesize = 8             # Number of data bits = 8
+            globals()['Det%s' % str(i)].parity   = 'N'           # No parity
+            globals()['Det%s' % str(i)].stopbits = 1 
 
-		time.sleep(1)
-		#globals()['Det%s' % str(i)].write('write')  
-                #globals()['Det%s' % str(i)].write("reset")
-		#counter = 0
+            time.sleep(1)
+            #globals()['Det%s' % str(i)].write('write')  
+            #globals()['Det%s' % str(i)].write("reset")
+            #counter = 0
 
-                #headers = []
-		'''
-                while (True):
-			header = globals()['Det%s' % str(i)].readline()     # Wait and read data 
-                        if "###" in header:
-                            headers.append(header)
-			if "#" not in header:
-                            break
-			if 'Device ID: ' in header:
-                            det_name = header.split('Device ID: ')[-1]
+            #headers = []
+            '''
+            while (True):
+                header = globals()['Det%s' % str(i)].readline()     # Wait and read data 
+                if "###" in header:
+                    headers.append(header)
+                if "#" not in header:
+                    break
+                if 'Device ID: ' in header:
+                    det_name = header.split('Device ID: ')[-1]
 
-		detector_name_list.append(det_name)    # Wait and read data 
-                '''
+            detector_name_list.append(det_name)    # Wait and read data 
+            '''
 
 	file = open(fname, "w",0)
         #for i in range(len(headers)):
@@ -276,19 +275,19 @@ if mode == 1:
 		string_of_names+=detector_name_list[0]
         '''
 	while True:
-		for i in range(nDetectors):
-			if globals()['Det%s' % str(i)].inWaiting():
-				data = globals()['Det%s' % str(i)].readline().replace('\r\n','')    # Wait and read data 
-                                data = data.split('\t')
-                                ti = str(datetime.now()).split(" ")
-                                data[1] = ti[-1]
-                                data[2] = ti[0].replace('-','/')
-				#file.write(str(datetime.now())+" "+data+" "+detector_name_list[i]+'\n')
-                                for j in range(len(data)):
-				    file.write(data[j]+'\t')
-                                #file.write("\t"+detector_name_list[i]+'\n')
-                                file.write("\n")
-				globals()['Det%s' % str(i)].write('got-it') 
+	    for i in range(nDetectors):
+                if globals()['Det%s' % str(i)].inWaiting():
+                    data = globals()['Det%s' % str(i)].readline().replace('\r\n','')    # Wait and read data 
+                    data = data.split('\t')
+                    ti = str(datetime.now()).split(" ")
+                    data[1] = ti[-1]
+                    data[2] = ti[0].replace('-','/')
+                    #file.write(str(datetime.now())+" "+data+" "+detector_name_list[i]+'\n')
+                    for j in range(len(data)):
+                        file.write(data[j]+'\t')
+                    #file.write("\t"+detector_name_list[i]+'\n')
+                    file.write("\n")
+                    globals()['Det%s' % str(i)].write('got-it') 
 
 	for i in range(nDetectors):
 		globals()['Det%s' % str(i)].close()     
@@ -402,8 +401,8 @@ if mode == 4:
     port = 9090
     http_server.listen(port)
     myIP = socket.gethostbyname(socket.gethostname())
-    print 'CosmicWatch detector server started at %s:%d' % (myIP, port)
-    print 'You can now connect to your device using http://cosmicwatch.lns.mit.edu/'
+    print('CosmicWatch detector server started at %s:%d' % (myIP, port))
+    print('You can now connect to your device using http://cosmicwatch.lns.mit.edu/')
     mainLoop = tornado.ioloop.IOLoop.instance()
     #in the main loop fire queue check each 100ms
     try:
