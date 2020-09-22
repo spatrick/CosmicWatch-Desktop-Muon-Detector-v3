@@ -5,8 +5,13 @@
 //   2. Adafruit_BMP280
 //   3. SDFat
 
-int SIGNAL_THRESHOLD              = 200;          // The number of HGain ADC counts above the baseline before triggering
-int RESET_THRESHOLD               = 20;           // Number of ADC counts above the baseline before resetting the trigger
+const boolean RESET_DETECTOR_NAME = false;        // Do you want to update the name of the detector?
+String desired_detector_name      = "Five";     // If so, then to what?
+
+int SHIFT_HOUR                    = 0;           // The realtime clock  doesn't understand daylight savings, sometimes you have to shift the hour.
+
+int SIGNAL_THRESHOLD              = 50;          // The number of HGain ADC counts above the baseline before triggering
+int RESET_THRESHOLD               = 25;           // Number of ADC counts above the baseline before resetting the trigger
 const boolean OLED                = true;         // Turn on/off OLED. 
 const int LED_BRIGHTNESS          = 255;          // Brightness of the 5mm LED [0,255]
 const int LED_BRIGHTNESS_SMALL    = 255;          // Brightness of the 3mm LED [0,255]
@@ -16,16 +21,13 @@ const boolean SAVE_ALL_EVENTS     = true;        // Do you want to save all even
 const boolean PLAYSTARTMUSIC      = false;         // Play music during startup
 const boolean PLAYEVENTNOISE      = false;         // Make a noise during an event.
 
-int SHIFT_HOUR                    = 1;            // The realtime clock  doesn't understand daylight savings, sometimes you have to shift the hour.
-
-const boolean RESET_DETECTOR_NAME = true;        // Do you want to update the name of the detector?
-String desired_detector_name      = "Vera";     // If so, then to what?
-
 // You don't need this.
 const boolean CALIBRATE           = false;        // Do you want to calibrate the detector? 
 const boolean VERBOSE             = true;         // print out detector information through the serial port.
 
 //############################################################################################################################
+
+
 
 // A boolean to store whether or not another detector is plugged in.
 boolean COINCIDENCE = false; // Is there another detector plugged into the RJ45 connector?
@@ -51,20 +53,6 @@ float sampling_period = 0; // sampling_period defines how many us it takes to ma
 IntervalTimer myTimer;
 Adafruit_SSD1306 display(OLED_RESET);
 boolean trigger_OLED_readout = true;
-/*
-// Setup the GPS stuff. This requires a separate GPS module to be plugged in.
-#include <TinyGPS.h>
-TinyGPS gps;
-//#define _SS_MAX_RX_BUFF 128
-#include <SoftwareSerial.h>
-SoftwareSerial mySerial =  SoftwareSerial(0,1);
-unsigned long fix_age;
-long lat, lon, alt;
-float flat, flon,falt;
-//unsigned long  time, date, speed, course;
-//int year;
-//byte month, day, hour, minute, second, hundredths;
-*/
 
 // Setup the temperature/pressure sensor, BMP280
 #include <Adafruit_BMP280.h>
@@ -88,7 +76,7 @@ char filename[] = "File_000.txt"; // The default file name on the SDCard.
 boolean trigger_microSD_readout = true;
 IntervalTimer myTimer_microSD;
 const int SD_sense_pin = 4;
-
+boolean SDAvailable = true;
 
 // Setup the speaker/buzzer to play sounds.
 #include "pitches.h"
@@ -105,7 +93,9 @@ const int led_pin_small = 15; // LED for muon-only events.
 #include <EEPROM.h>
 const int EEPROM_MIN_ADDR = 0;
 const int EEPROM_MAX_ADDR = 511;
-char detector_name[40]; // The detector name 
+const int BUFSIZE = 40;
+char detector_name[BUFSIZE]; // The detector name 
+int chars_in_detector_name = 0;
 
 // Event buffer information. Each entry in the array will correspond to an event.
 float         event_SiPM_peak_voltage = 0;
@@ -117,11 +107,19 @@ unsigned int  event_deadtime = 0;
 unsigned int  total_deadtime = 0;
 unsigned long int event_number = 0;
 unsigned long int coincidence_event_number = 0L;   // A tally of the number of coincidence triggers counts observed
+unsigned int event_hour;
+unsigned int event_minute;
+unsigned int event_second;
+unsigned long int event_millis;
+unsigned int event_year;
+unsigned int event_month;
+unsigned int event_day;
+
 
 
 
 // Setup the array to store the ADC values. These are the samples that determine the pulse amplitude.
-const int number_of_ADC_samples = 15; 
+const int number_of_ADC_samples = 3; 
 int adc_values_LGain[number_of_ADC_samples] = {};
 int adc_values_HGain[number_of_ADC_samples] = {};
 
@@ -142,12 +140,15 @@ unsigned long long start_time                    = 0L;      // Detector start ti
 
 // The following are used to convert a measured ADC value to a SiPM pulse amplitude.
 // The numbers here represent the coeffiecients to a polynomial.
-const long double calibration_LGAIN[] = {1.7533322011934085, 0.787586000546244, -0.009199480757696927, 
-    6.012845066810915e-05, -1.9624363638711867e-07, 3.3524440823499977e-10, -2.865360202062752e-13, 
-    9.666833518212742e-17};
-const long double calibration_HGAIN[] = {3.2710099499097853, -0.026739051905367038, 0.0007458682824500668, 
-    -4.483744818269019e-06, 1.3216479193750288e-08, -2.0382461921241747e-11, 1.582331771450506e-14, 
-    -4.846276334353496e-18};
+const long double calibration_LGAIN[] = {7.770331963379388, 0.8551744828904521, -0.022610435459974862, 
+        0.0003373183522713416, -2.7337802203549252e-06, 1.3226510403668739e-08, -4.0439095029897887e-11, 
+        8.051241933191732e-14, -1.0542207510231822e-16, 9.042246953474205e-20, -5.069161049407975e-23, 
+        1.9481994863843597e-26, -5.8210764000045555e-30, 1.1493759151290367e-33};
+const long double calibration_HGAIN[] = {8.50709099942261, -0.11778994093618891, 0.0017674792660310806,
+            -1.0974310076889382e-05, 3.860681705887885e-08, -8.15063422576611e-11, 1.0149341982138817e-13,
+            -6.819510515623369e-17, 1.8973203130950888e-20};
+float turn_over_value = 15.;
+float sigmoid_width = 1.5; 
     
 // The slopes of the above calibration polynomial fits are used to determine 
 // which channel is a better measure of the SiPM pulse amplitude.
@@ -155,15 +156,22 @@ long double calibration_HGAIN_slope[sizeof(calibration_HGAIN)/sizeof(long double
 long double calibration_LGAIN_slope[sizeof(calibration_HGAIN)/sizeof(long double)];
 
 // Setup external calibration. This is to determine how to convert from ADC to SiPM peak voltage
-unsigned int  n_samples = 100;         // How many samples to take per voltage level
-int           step_size_low = 3;       // Detector start time reference variable
-int           start_value_low = 3;     // Detector start time reference variable
-int           step_size_mid = 10;      // Detector start time reference variable
+unsigned int  n_samples = 200;         // How many samples to take per voltage level
+int           step_size_low = 1;       // Detector start time reference variable
+int           start_value_low = 5;     // Detector start time reference variable
+int           step_size_mid = 2;      // Detector start time reference variable
 int           start_value_mid = 20;    // Detector start time reference variable
-int           step_size_high = 30;     // Detector start time reference variable
+int           step_size_high = 10;     // Detector start time reference variable
 int           start_value_high = 50;    // Detector start time reference variable
 int           desired_input_voltage = start_value_low;
+int           delay_between_measurements = 5000;
 
+//baseline properties
+int n_baseline_samples = 100.;
+int HGain_baseline = 0;
+int LGain_baseline = 0;
+float baseline_average = 0;
+float baseline_std = 0;
 
 //############################################################################################################################
 void setup() {
@@ -187,7 +195,13 @@ void setup() {
       }
     }
   get_detector_name(detector_name);
-  
+
+  for (int i = 0; i<BUFSIZE; i++){
+    if (detector_name[i]){
+        chars_in_detector_name += 1;
+        }
+      }
+      
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   display.setRotation(2);         // Upside down screen (0 is right-side-up)
   OpeningScreen();                // Run the splash screen on start-up
@@ -195,7 +209,7 @@ void setup() {
 
   
 
-  // Look for the SD Card
+  // The SD sense pin checks to see if an SD card is inserted.
   pinMode(SD_sense_pin, INPUT_PULLUP);
 
   // Start the temp and pressure sensor
@@ -209,8 +223,8 @@ void setup() {
 
   // Get the detector name from the EEPROM
   if (VERBOSE){
-    if (sizeof(detector_name) > 40){
-      Serial.println("# Det Name too large. Keep <= 10 characters.");
+    if (chars_in_detector_name > 20){
+      Serial.println("# Det Name too large. Keep <= 20 characters.");
     }
     Serial.println("# Found detector ID: "+(String)detector_name); 
   }
@@ -226,6 +240,7 @@ void setup() {
     Serial.println(F("# SD initialization failed!"));
     Serial.println(F("# Is there an SD card inserted?"));
     //SD.initErrorHalt();
+    SDAvailable = false;
   }
   
   /*
@@ -261,7 +276,7 @@ void setup() {
   adc->adc0->setSamplingSpeed(ADC_SAMPLING_SPEED::VERY_HIGH_SPEED);
   adc->adc0->setConversionSpeed(ADC_CONVERSION_SPEED::VERY_HIGH_SPEED);
 
-// Measure the baseline mode, average, and std. Also measure the sample rate of the ADC.
+  // Measure the baseline mode, average, and std. Also measure the sample rate of the ADC.
   measure_baseline();
 
   
@@ -287,12 +302,12 @@ void setup() {
   delay(1500);                    // Delay some time to show the logo, and keep the Pin6 HIGH for coincidence
 
 
-  // Print the header information to the file.
-  print_header();
+
 
   // Calculate the slopes of the calibration curves. 
   //calculate_calibration_slopes();
   
+
   // Update the OLED every second
   myTimer.begin(trigger_OLED, 1000000);
   //myTimer.priority(255);
@@ -300,8 +315,18 @@ void setup() {
   // write to the sd card every 10seconds
   myTimer_microSD.begin(trigger_microSD, 10000001);
 
-  // This will be the detector start time.
+
+  // Print the header information to the file.
+  print_header();
+
+
+  // Syncronize the realtime clock with the millis function.
+  int start_second = second();
+  while(start_second==second()){
+    continue;
+    }
   start_time = millis();
+  
 }
 
 //############################################################################################################################
@@ -318,9 +343,17 @@ void loop() {
     }
 
   // If we see that the ADC measurement is above the threshold, trigger.
+  //float adc_measurement = adc->adc0->analogRead(A8);
+/*
+  unsigned long int t1a = micros();
+  while(adc->adc0->analogRead(A8) > RESET_THRESHOLD){
+    //Serial.println(" ");
+    }
+  unsigned long int t2a = micros();
+   */
   float adc_measurement = adc->adc0->analogRead(A8);
+  //Serial.println(adc_measurement);
   if (adc_measurement > SIGNAL_THRESHOLD){
-
     // Turn off interupts while we measure the waveform.
     noInterrupts();
     unsigned long int t1 = micros();
@@ -344,37 +377,49 @@ void loop() {
       analogWrite(led_pin, LED_BRIGHTNESS);
       analogWrite(led_pin_small, LED_BRIGHTNESS_SMALL);
       coincidence_event_number+=1;
-    }//}
-    
+    }
     else{
       analogWrite(led_pin, LED_BRIGHTNESS);
-      //analogWrite(led_pin2, LED_BRIGHTNESS);
     }
+    
+    event_hour = hour();
+    event_minute = minute();
+    event_second = second();
+    event_millis = (millis()-start_time)%1000;
+    event_year = year();
+    event_month = month();
+    event_day = day();
+
+    
     // Measure the waveforms for the HGain and LGain Channel.
     for (int i = 0; i < number_of_ADC_samples; i++) {
-      adc_values_LGain[i] = adc->adc0->analogRead(A6);
-      adc_values_HGain[i] = adc->adc0->analogRead(A8);
+      adc_values_LGain[i] = adc->adc0->analogRead(A6);// - LGain_baseline;
+      adc_values_HGain[i] = adc->adc0->analogRead(A8);// - HGain_baseline;
     }
-
+    //Serial.println(HGain_baseline);
+    //Serial.println(LGain_baseline);
     //fit_exp fits an exponential to the measured data. It takes the ADC values (y coordinates), and the trigger time.
         // If the other detector also sees and event, consider it coincidence. 
     //if (COINCIDENCE){
     
-    event_measured_ADC_LGAIN = fit_exp(adc_values_LGain,0);
-    event_measured_ADC_HGAIN = fit_exp(adc_values_HGain, -sampling_period);
+    //event_measured_ADC_LGAIN = fit_exp(adc_values_LGain,0);
+    //event_measured_ADC_HGAIN = fit_exp(adc_values_HGain, 0);
 
-    // Make sure the fitting worked
+    event_measured_ADC_LGAIN = (adc_values_LGain[0]);//+adc_values_LGain[1]+adc_values_LGain[2])/3.;
+    event_measured_ADC_HGAIN = (adc_values_HGain[0]);//+adc_values_HGain[1]+adc_values_HGain[2])/3.;
+
+    /*
+     * 
+     // Make sure the fitting worked
     if (event_measured_ADC_LGAIN < 1.){
       break;
     }
     if (event_measured_ADC_HGAIN < 1.){
       break;
     }
-     
+     */
     
     // If the other detector also sees and event, consider it coincidence. 
-
-    
 
     event_number +=1;
     if (PLAYEVENTNOISE){
@@ -390,11 +435,11 @@ void loop() {
           }
        
         if (desired_input_voltage < start_value_high) {
-          if (desired_input_voltage > start_value_mid){
+          if (desired_input_voltage >= start_value_mid){
                desired_input_voltage += step_size_mid;
            }
         }
-        if (desired_input_voltage > start_value_high) {
+        if (desired_input_voltage >= start_value_high) {
           desired_input_voltage += step_size_high;
         }
      
@@ -403,9 +448,10 @@ void loop() {
      event_number = 0;
      Serial.println("# --- NEXT --- #");
      Serial.println("#     " +(String)desired_input_voltage + "     #");
-     delay(10000);
+     delay(delay_between_measurements);
      }
-     Serial.println((String)desired_input_voltage + " " +(String)event_measured_ADC_HGAIN + " " +(String)event_measured_ADC_LGAIN);
+     Serial.println((String)desired_input_voltage + " " +(String)event_measured_ADC_HGAIN +" "  +(String)event_measured_ADC_LGAIN);
+     analogWrite(led_pin, 0);
     }
    else{
       event_temperature       = temp_pressure_sensor.readTemperature();    // C
@@ -416,18 +462,18 @@ void loop() {
       print_data_to_serial();
       analogWrite(led_pin, 0);
       
-      
       print_data_to_microSD();
       event_deadtime   = 0;
       event_coincident = 0;
     }
 
     while(adc->adc0->analogRead(A8) > RESET_THRESHOLD){continue;}
-    
+
     unsigned long int t2 = micros();
     event_deadtime += t2 - t1;
+   // event_deadtime += t2a - t1a;
     analogWrite(led_pin_small, 0);
-    noTone(speaker_pin);
+    //noTone(speaker_pin);
     interrupts();
   }
 }
@@ -436,7 +482,10 @@ void loop() {
 //############################################################################################################################
 //############################################################################################################################
 //############################################################################################################################
-
+float sigmoid(float SiPM_value){
+    return 1 / (1 + exp(-(SiPM_value-turn_over_value)/sigmoid_width));
+  }
+  
 float get_SiPM_peak_voltage(float HGain_adc_value, float LGain_adc_value){
   // This function takes the measured ADC values and returns the expected SiPM peak voltage required to generate
   // the measured ADC values.
@@ -451,6 +500,7 @@ float get_SiPM_peak_voltage(float HGain_adc_value, float LGain_adc_value){
     LGAIN_SiPM_peak_voltage += calibration_LGAIN[i] * pow(LGain_adc_value,i);
     }
 
+  /*
   float HGAIN_slope = 0;
   for (unsigned int i = 1; i < (sizeof(calibration_HGAIN)/sizeof(long double)); i++) {
     HGAIN_slope += calibration_HGAIN_slope[i] * pow(HGain_adc_value,i-1);
@@ -460,8 +510,8 @@ float get_SiPM_peak_voltage(float HGain_adc_value, float LGain_adc_value){
   for (unsigned int i = 1; i < (sizeof(calibration_LGAIN_slope)/sizeof(long double)); i++) {
     LGAIN_slope += calibration_LGAIN_slope[i] * pow(LGain_adc_value,i-1);
     }
-
-  float ratio_of_slopes = HGAIN_slope/LGAIN_slope;
+  */
+  //float ratio_of_slopes = HGAIN_slope/LGAIN_slope;
   /*
   Serial.println(ratio_of_slopes);
   if (ratio_of_slopes > 1.){
@@ -471,7 +521,24 @@ float get_SiPM_peak_voltage(float HGain_adc_value, float LGain_adc_value){
     return (1-ratio_of_slopes)*HGAIN_slope + (ratio_of_slopes)*LGAIN_slope;
   }
   */
-  return HGAIN_SiPM_peak_voltage;//LGAIN_SiPM_peak_voltage;
+
+  
+  
+  
+  //Serial.println(sigmoid(HGAIN_SiPM_peak_voltage));
+  //Serial.println(1-sigmoid(HGAIN_SiPM_peak_voltage));
+  
+  return (1-sigmoid(HGAIN_SiPM_peak_voltage))*HGAIN_SiPM_peak_voltage+\
+            sigmoid(HGAIN_SiPM_peak_voltage)*LGAIN_SiPM_peak_voltage;
+  
+  /*
+  if (LGain_adc_value > 50){
+    return LGAIN_SiPM_peak_voltage;
+  }
+  else{
+    return HGAIN_SiPM_peak_voltage;
+  }
+  */
   
 }
 
@@ -536,26 +603,32 @@ void print_data_to_serial()
 {
   unsigned long int t1 = micros();
   Serial.print((String)event_number+ "\t");
-  if (hour() + SHIFT_HOUR > 23){
-    Serial.print(hour() + SHIFT_HOUR - 24);
+  if (event_hour + SHIFT_HOUR > 23){
+    Serial.print(event_hour + SHIFT_HOUR - 24);
   }
   else{
-    Serial.print(hour() + SHIFT_HOUR);
+    Serial.print(event_hour + SHIFT_HOUR);
     }
   Serial.print(":");
-  if(minute() < 10)
+  if(event_minute < 10)
     Serial.print('0');
-  Serial.print(minute());
+  Serial.print(event_minute);
   Serial.print(":");
-  if(second() < 10)
+  if(event_second < 10)
     Serial.print('0');
-  Serial.print(second());
+  Serial.print(event_second);
+  Serial.print(".");
+  if(event_millis < 100)
+    Serial.print('0');
+  if(event_millis < 10)
+    Serial.print('0');
+  Serial.print(event_millis);
   Serial.print("\t");
-  Serial.print(day());
+  Serial.print(event_day);
   Serial.print("/");
-  Serial.print(month());
+  Serial.print(event_month);
   Serial.print("/");
-  Serial.print(year()); 
+  Serial.print(event_year); 
   Serial.println( "\t"+(String)event_timestamp+ "\t"\
                     + (String)event_measured_ADC_HGAIN+ "\t"\
                     + (String)event_measured_ADC_LGAIN+ "\t"\
@@ -564,9 +637,10 @@ void print_data_to_serial()
                     + (String)event_pressure+"\t"\
                     + (String)event_deadtime+"\t"\
                     + (String)event_coincident+"\t"\
+                    + (String)detector_name+"\t"\
                     );
   unsigned long int t2 = micros();
-  //event_deadtime += t2 - t1;
+  event_deadtime += t2 - t1;
 }
 
 void print_data_to_microSD()
@@ -603,25 +677,20 @@ void print_data_to_microSD()
                     + (String)event_deadtime+"\t"\
                     + (String)event_coincident+"\t"\
                     );
+
+  //measure_baseline();
   
   unsigned long int t2 = micros();
-  //event_deadtime += t2 - t1;
+  event_deadtime += t2 - t1;
 }
 
 
 void update_OLED()
 {
-
-  String message = "";
-  message = Serial.readString();
-  if (message == "reset"){
-    soft_restart();
-    }
-
-     
   unsigned long int t1 = micros();
   if (OLED){
     int NCounts;
+    
     
     if (COINCIDENCE){
       NCounts = coincidence_event_number;
@@ -634,10 +703,15 @@ void update_OLED()
     unsigned long int OLED_t1             = millis();
     float count_average                   = 0;
     float count_std                       = 0;
+    float muon_count_average                   = 0;
+    float muon_count_std                       = 0;
     
     //count_average   = NCounts / ((OLED_t1 - start_time - total_deadtime/1000.) / 1000.);
-    count_average   = NCounts / ((OLED_t1 - start_time - total_deadtime/1000.) / 1000.);
-    count_std       = sqrt(NCounts) / ((OLED_t1 - start_time  - total_deadtime/1000.) / 1000.);
+    muon_count_average   = coincidence_event_number / ((OLED_t1 - start_time - total_deadtime/1000.) / 1000.);
+    muon_count_std       = sqrt(coincidence_event_number) / ((OLED_t1 - start_time  - total_deadtime/1000.) / 1000.);
+    count_average   = event_number / ((OLED_t1 - start_time - total_deadtime/1000.) / 1000.);
+    count_std       = sqrt(event_number) / ((OLED_t1 - start_time  - total_deadtime/1000.) / 1000.);
+
 
     display.setCursor(0, 0);
     display.clearDisplay();
@@ -664,36 +738,75 @@ void update_OLED()
     display.print(min_char);
     display.print(":" );
     display.println(sec_char);
-  
-    if (event_SiPM_peak_voltage > 200){
-          display.print(F("===---- WOW! ----==="));}
-      else{
-            if (COINCIDENCE) {display.print(F("C"));}
-            else{display.print(F("M"));}
-            for (int i = 1; i <=  (event_SiPM_peak_voltage + 10) / 10; i++) {display.print(F("-"));}}
-    display.println(F(""));
-  
+
     char tmp_average[10];
     char tmp_std[10];
+    char tmp_average_muon[10];
+    char tmp_std_muon[10];
+    
   
     int decimals = 2;
     if (count_average < 10) {decimals = 3;}
+
+    int muon_decimals = 2;
+    if (muon_count_average < 10) {decimals = 3;}
+
     
     dtostrf(count_average, 1, decimals, tmp_average);
     dtostrf(count_std, 1, decimals, tmp_std);
     
-    display.print(F("Rate: "));
-  
-    display.print((String)tmp_average);
-    display.print(F("+/-"));
+    dtostrf(muon_count_average, 1, decimals, tmp_average_muon);
+    dtostrf(muon_count_std, 1, decimals, tmp_std_muon);
     
-    if (decimals == 3){
-      display.print((String)tmp_std);
-      display.println("Hz");
-    }
-    else{
-      display.println((String)tmp_std);
+    
+    if (COINCIDENCE){
+      display.print(F("Rate: "));
+      display.print((String)tmp_average);
+      display.print(F("+/-"));
+      if (decimals == 3){
+        display.print((String)tmp_std);
+        display.print("Hz");
       }
+      else{
+        display.println((String)tmp_std);
+        }
+      
+      display.print(F("Rate: "));
+      display.print((String)tmp_average_muon);
+      display.print(F("+/-"));
+      if (muon_decimals == 3){
+        display.print((String)tmp_std_muon);
+        display.println("Hz    ");
+        }
+      else{
+        display.println((String)tmp_std_muon);
+        }
+      }
+      else{
+        if (event_SiPM_peak_voltage > 200){
+            display.print(F("===---- WOW! ----==="));}
+        else{
+              if (COINCIDENCE) {display.print(F("C"));}
+              else{display.print(F("M"));}
+              for (int i = 1; i <=  (event_SiPM_peak_voltage + 10) / 10; i++) {display.print(F("-"));}}
+       
+      display.println(F(""));
+      
+      display.print(F("Rate: "));
+      display.print((String)tmp_average);
+      display.print(F("+/-"));
+      if (decimals == 3){
+        display.print((String)tmp_std);
+        display.println("Hz");
+      }
+      else{
+        display.println((String)tmp_std);
+        }
+      }
+
+      
+      
+   
   
     display.display();
   }
@@ -723,6 +836,8 @@ void setup_sd_card_files() {
       myFile.open(filename, O_WRONLY | O_CREAT | O_EXCL);
       //myFile = SD.open(filename, FILE_WRITE);
       break;
+
+    
     }
     /*
     if (!SD.exists(filename)) {
@@ -888,66 +1003,115 @@ void soft_restart()
 
 void measure_baseline()
 {
+  while(true){
   // This function measures properties with the baseline
-  while(true)
-  {
-  int n_baseline_samples = 1000.;
-  long int baseline_adc_samples[n_baseline_samples] = {};
-  long int hist_baseline_samples[1024]    = {};
-  memset(hist_baseline_samples, 0, sizeof(hist_baseline_samples));
+
+  long int HGain_baseline_adc_samples[n_baseline_samples] = {};
+  long int LGain_baseline_adc_samples[n_baseline_samples] = {};
+  long int HGain_hist_baseline_samples[1024]    = {};
+  long int LGain_hist_baseline_samples[1024]    = {};
   
+  memset(HGain_hist_baseline_samples, 0, sizeof(HGain_hist_baseline_samples));
+  memset(LGain_hist_baseline_samples, 0, sizeof(LGain_hist_baseline_samples));
+
+  //float t1_adc_cal =  micros();
+  for (int i = 0; i < n_baseline_samples; i++) {
+    HGain_baseline_adc_samples[i] = adc->adc0->analogRead(A8);
+    delayMicroseconds(50);
+    LGain_baseline_adc_samples[i] = adc->adc0->analogRead(A6);
+    delayMicroseconds(50);
+  }
+
   float t1_adc_cal =  micros();
   for (int i = 0; i < n_baseline_samples; i++) {
-    baseline_adc_samples[i] = adc->adc0->analogRead(A8);
+    adc->adc0->analogRead(A8);
   }
   float t2_adc_cal =  micros();
   sampling_period = (t2_adc_cal-t1_adc_cal)/n_baseline_samples;
 
-  float max_baseline_sample = 0;
+  //float sum_baseline_adc_counts=0;
+  float HGain_max_baseline_sample = 0;
+  float LGain_max_baseline_sample = 0;
+  
   float sum_baseline_adc_counts = 0;
   for (int i = 0; i < n_baseline_samples; i++) {
-    hist_baseline_samples[baseline_adc_samples[i]] += 1;
-    if (baseline_adc_samples[i] > max_baseline_sample){
+    HGain_hist_baseline_samples[HGain_baseline_adc_samples[i]] += 1;
+    LGain_hist_baseline_samples[LGain_baseline_adc_samples[i]] += 1;
+    sum_baseline_adc_counts += HGain_baseline_adc_samples[i];
     
-      max_baseline_sample =  baseline_adc_samples[i];
+    if (HGain_baseline_adc_samples[i] > HGain_max_baseline_sample){
+      HGain_max_baseline_sample =  HGain_baseline_adc_samples[i];
     }
-    sum_baseline_adc_counts += baseline_adc_samples[i];
+    if (LGain_baseline_adc_samples[i] > LGain_max_baseline_sample){
+      LGain_max_baseline_sample =  LGain_baseline_adc_samples[i];
+    }
   }
-  int baseline_mode = 0;
+  
+  
+  int max_element = 0;
   for (int i= 0; i < 1023; i++){
-      if (hist_baseline_samples[i] > baseline_mode){
-        baseline_mode = i;
+      if (HGain_hist_baseline_samples[i] > max_element){
+        HGain_baseline = i;
       }
   }
-  float baseline_average = sum_baseline_adc_counts/n_baseline_samples;
+  
+  max_element = 0;
+  for (int i= 0; i < 1023; i++){
+      if (LGain_hist_baseline_samples[i] > max_element){
+        LGain_baseline = i;
+      }
+  }
+
+  baseline_average = sum_baseline_adc_counts/n_baseline_samples;
   float xmu2 = 0;
   for (int i = 0; i < n_baseline_samples; i++) {
-    xmu2 += pow(baseline_adc_samples[i] - baseline_average,2);
+    xmu2 += pow(HGain_baseline_adc_samples[i] - baseline_average,2);
   }
   
-  float baseline_std = 1/sqrt(n_baseline_samples)*sqrt(xmu2);
-  
-  if (max_baseline_sample > (baseline_average + 6*baseline_std)){
+  baseline_std = 1/sqrt(n_baseline_samples)*sqrt(xmu2);
+
+  if (HGain_baseline > 30){
+    Serial.println("# Baseline appears to be higher than expected");
+  }
+  else{
+    break;
+  }
+
+   //Serial.println((String)new_HGain_baseline + " " + (String)new_LGain_baseline);
+   //if baseline_std
+  /*
+  if (max_baseline_sample > (baseline_average + 20)){
     if (VERBOSE){
       Serial.println("# Noise or pulse likely in baseline. Remeasuring...");
+      Serial.println(baseline_average);
+      Serial.println(max_baseline_sample);
+      Serial.println(baseline_std);
     } 
   }
-  
-  else{
-    SIGNAL_THRESHOLD = baseline_average + SIGNAL_THRESHOLD;
-    RESET_THRESHOLD  = baseline_average + RESET_THRESHOLD;
-    if (VERBOSE){
-      Serial.println("# Sampling period of ADC: "+(String)sampling_period+"us"); 
-      Serial.println("# Baseline Mode: "+(String)baseline_mode+"ADC counts"); 
-      Serial.println("# Baseline Average: "+(String)baseline_average+"ADC counts");
-      Serial.println("# Baseline STD: " +(String)baseline_std+"ADC counts"); 
-      Serial.println("# Trigger threshold: "+(String)SIGNAL_THRESHOLD+"ADC counts, ");//+(String)(SIGNAL_THRESHOLD * 3.3/1024.)+"mV");
-      Serial.println("# Reset treshold " +(String)RESET_THRESHOLD+"ADC counts, ");//+(String)(RESET_THRESHOLD * 3.3/1024.)+"mV");
-    }
-    break;
-    }
+  */
   }
+  //else{
+  SIGNAL_THRESHOLD = HGain_baseline + SIGNAL_THRESHOLD;
+  RESET_THRESHOLD  = HGain_baseline + RESET_THRESHOLD;
+  
+  if (VERBOSE){
+    Serial.println("# Sampling period of ADC: "+(String)sampling_period+"us"); 
+    Serial.println("# HGain Baseline Mode: "+(String)HGain_baseline+"ADC counts"); 
+    Serial.println("# LGain Baseline Mode: "+(String)HGain_baseline+"ADC counts"); 
+    Serial.println("# Baseline Average: "+(String)baseline_average+"ADC counts");
+    Serial.println("# Baseline STD: " +(String)baseline_std+"ADC counts"); 
+    Serial.println("# Trigger threshold: "+(String)SIGNAL_THRESHOLD+"ADC counts, ");//+(String)(SIGNAL_THRESHOLD * 3.3/1024.)+"mV");
+    Serial.println("# Reset treshold " +(String)RESET_THRESHOLD+"ADC counts, ");//+(String)(RESET_THRESHOLD * 3.3/1024.)+"mV");
+  }
+    
+    //}
+    //break;
+  //}
 }
+
+
+
+
 
 void OpeningScreen(void)
   // This is the splash screen when the detector turns on.
@@ -968,19 +1132,29 @@ void OpeningInfo(void)
   {
     display.setCursor(8, 0);
     display.clearDisplay();
-    display.println("  Hi, my name is");
+    display.println(" Hi, my name is");
 
     display.setTextSize(1);
 
-    int16_t x1, y1;
-    uint16_t w, h;
-    display.getTextBounds(detector_name, 13, 12, &x1, &y1, &w, &h); //calc width of new string
+    //int16_t x1, y1;
+    //uint16_t w, h;
+    //display.getTextBounds(detector_name, 13, 12, &x1, &y1, &w, &h); //calc width of new string
     //Name character length is w/12. Each charachter is 4
-    display.setCursor(64 - 6*w/12, 10);
+    //display.setCursor(64 - 6*w/12, 10);
+
+    //chars_in_detector_name
+    
+    display.setCursor(64 - 7*chars_in_detector_name/2,10);
     display.println(detector_name);
     display.setCursor(0, 24);
-    display.print("File: ");
-    display.println(filename);
+    if (SDAvailable ==false){
+      display.print("No SD card available. ");
+      }
+    else {
+      display.print("File: ");
+      display.println(filename);
+      }
+    
     display.display();
     display.setTextSize(1);
     play_start_music();
@@ -1048,13 +1222,14 @@ boolean eeprom_write_string(int addr, const char* string) {
 
 boolean set_detector_name()
 {
-  const int BUFSIZE = 40;
   char buf[BUFSIZE];
-  char det_name_Char[BUFSIZE];
-  
-  desired_detector_name.toCharArray(det_name_Char, BUFSIZE);
-  strcpy(buf, det_name_Char);
+  for (int i = 0; i < BUFSIZE; i++) {
+    buf[i] = ";";
+    }
+  desired_detector_name.toCharArray(buf,BUFSIZE); // convert string into array of chars.
   eeprom_write_string(0, buf);
+  //strcpy(buf, det_name_Char);
+  //eeprom_write_string(0, buf);
   return true;
 }
 
@@ -1067,11 +1242,12 @@ boolean get_detector_name(char* det_name)
   det_name[bytesRead] = ch;               // store it into the user buffer
   bytesRead++;                          // increment byte counter
 
-  while ( (ch != 0x00) && (bytesRead < 40) && ((bytesRead) <= 511) )
+  while ( (ch != 0x00) && (bytesRead < BUFSIZE) && ((bytesRead) <= 511) )
   {
     ch = EEPROM.read(bytesRead);
-    det_name[bytesRead] = ch;           // store it into the user buffer
-    bytesRead++;                      // increment byte counter
+    if (ch != ";");
+      det_name[bytesRead] = ch;           // store it into the user buffer
+    bytesRead++;                        // increment byte counter
   }
   if ((ch != 0x00) && (bytesRead >= 1)) {
     det_name[bytesRead - 1] = 0;

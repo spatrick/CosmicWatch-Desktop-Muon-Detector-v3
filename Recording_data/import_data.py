@@ -233,6 +233,7 @@ if mode == 1:
         time.sleep(1)
         #globals()['Det%s' % str(i)].write('write')  
         #globals()['Det%s' % str(i)].write("reset")
+        s.close()
         #counter = 0
 
         #headers = []
