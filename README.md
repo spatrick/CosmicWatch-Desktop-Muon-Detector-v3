@@ -9,4 +9,4 @@ Youtube videos describing various aspects of the detectors can be found here:
 YouTube tutorial:
 
 
-![screes](https://github.com/spenceraxani/CosmicWatch-Desktop-Muon-Detector-v3//master/Pictures/JLAB_array.jpg)
+![screes](https://github.com/spenceraxani/CosmicWatch-Desktop-Muon-Detector-v3.git/master/Pictures/JLAB_array.jpg)
