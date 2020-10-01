@@ -1,5 +1,5 @@
 <p align="center">
-<font size="+10">
+<font size=20>
 # CosmicWatch-Desktop-Muon-Detector
 </font>
 </p>
