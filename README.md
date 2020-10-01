@@ -1,6 +1,6 @@
 <p align="center">
 <font size=20>
-# CosmicWatch-Desktop-Muon-Detector
+CosmicWatch-Desktop-Muon-Detector
 </font>
 </p>
 
