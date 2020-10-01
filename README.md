@@ -1,8 +1,6 @@
-<p align="center">
-<font size=20>
-CosmicWatch-Desktop-Muon-Detector
-</font>
-</p>
+
+#CosmicWatch-Desktop-Muon-Detector
+
 
 ![screes](https://github.com/spenceraxani/CosmicWatch-Desktop-Muon-Detector-v3/blob/master/Pictures/JLAB_array.JPG)
 
