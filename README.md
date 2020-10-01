@@ -8,4 +8,6 @@ Youtube videos describing various aspects of the detectors can be found here:
 
 YouTube tutorial:
 
-![alt text](Pictures/JLAB_array.jpg?raw=true)
+![alt text](/Pictures/JLAB_array.jpg?raw=true)
+![Alt text](/JLAB_array.jpg?raw=true)
+![Optional Text](../master/Pictures/JLAB_array.png)
