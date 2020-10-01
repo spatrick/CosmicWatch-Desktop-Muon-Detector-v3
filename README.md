@@ -1,5 +1,7 @@
 <p align="center">
+<font size="+10">
 # CosmicWatch-Desktop-Muon-Detector
+</font>
 </p>
 
 ![screes](https://github.com/spenceraxani/CosmicWatch-Desktop-Muon-Detector-v3/blob/master/Pictures/JLAB_array.JPG)
