@@ -215,28 +215,29 @@ if mode == 1:
     #ComPort_list = np.ones(nDetectors)
 
     for i in range(nDetectors):
-        s = serial.Serial(str(port_name_list[i]))
+        #s = serial.Serial(str(port_name_list[i]))
         #s = signal.signal(signal.SIGINT, signal_handler)
         #serial.Serial(str(port_name_list[i])).write("reset") 
         #s.setDTR(True)
-        print("Reseting detector...")
-        #time.sleep(4)
+        #print("Reseting detector...")
+        time.sleep(1)
         #s.flushInput()
         #s.setDTR(False)
-        signal.signal(signal.SIGINT, signal_handler)
-        globals()['Det%s' % str(i)] = serial.Serial(str(port_name_list[i]))
-        globals()['Det%s' % str(i)].baudrate = 115200    
-        globals()['Det%s' % str(i)].bytesize = 8             # Number of data bits = 8
-        globals()['Det%s' % str(i)].parity   = 'N'           # No parity
-        globals()['Det%s' % str(i)].stopbits = 1 
+        #signal.signal(signal.SIGINT, signal_handler)
+        #globals()['Det%s' % str(i)] = serial.Serial(str(port_name_list[i]))
+        globals()['Det%s' % str(i)] = serial.Serial(str(port_name_list[i]),115200)
+        #globals()['Det%s' % str(i)].baudrate = 115200    
+        #globals()['Det%s' % str(i)].bytesize = 8             # Number of data bits = 8
+        #globals()['Det%s' % str(i)].parity   = 'N'           # No parity
+        #globals()['Det%s' % str(i)].stopbits = 1 
 
         time.sleep(1)
         #globals()['Det%s' % str(i)].write('write')  
         #globals()['Det%s' % str(i)].write("reset")
-        s.close()
         #counter = 0
 
         #headers = []
+        #s.close()
         '''
         while (True):
             header = globals()['Det%s' % str(i)].readline()     # Wait and read data 
