@@ -9,4 +9,4 @@ Currently, this version of the detector is only used for the MIT Junior Lab.
 
 Youtube videos describing various aspects of the detectors can be found here:
 
-YouTube tutorial:
+https://www.youtube.com/watch?v=Js-lOOS7sVE&list=PL4vQqHrEDYfFACdG83gTlRTslMXRjHihq
