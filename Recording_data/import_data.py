@@ -1,6 +1,7 @@
 # This script requires one library:
 # pyserial
 # to install, type: >> pip install pyserial
+
 from __future__ import print_function
 import serial 
 import time
@@ -15,19 +16,16 @@ import numpy as np
 import math
 import random
 
-
-
-
 def print_help1():
     print('\n===================== HELP =======================')
-    print('This code looks through the serial ports. ')
-    print('You can select multiple ports with by separating the port number with commas.')
-    print('You must select which port contains the CW detector.\n')
+    print('This can be used to read data from one or more CW detectors. ')
+    print('If you would like to read multiple detectors to a single file,')
+    print('separate the desired "Available serial ports" by commas below.\n')
     print('If you have problems, check the following:')
-    print('1. Is your Arduino connected to the serial USB port?\n')
+    print('1. Is your detector connected to the serial USB port?\n')
     print('2. Check that you have the correct drivers installed:\n')
     print('\tMacOS: CH340g driver (try: https://github.com/adrianmihalko/ch340g-ch34g-ch34x-mac-os-x-driver)')
-    print('\tWindows: no dirver needed')
+    print('\tWindows: no dirver needed, might need admin permissions')
     print('\tLinux: no driver needed, might need sudo permissions')
 
 
@@ -38,13 +36,6 @@ def signal_handler(signal, frame):
     sys.exit(0)
 
 def serial_ports():
-    """ Lists serial port names
-
-        :raises EnvironmentError:
-            On unsupported or unknown platforms
-        :returns:
-            A list of the serial ports available on the system
-    """
     if sys.platform.startswith('win'):
         ports = ['COM%s' % (i + 1) for i in range(256)]
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
@@ -66,16 +57,15 @@ def serial_ports():
     return result
 
 print('\n             Welcome to:   ')
-print('CosmicWatch: The Desktop Muon Detector\n')
-
-print("What would you like to do:")
-print("[1] Record data on the computer")
-print("[h] Help")
+print('CosmicWatch: The Desktop Muon Detector (v3)\n')
+print("What would you like to do?")
+print("  [1] Record data on the computer")
+print("  [h] Help")
 
 if sys.version_info[:3] > (3,0):
-    mode = str(input("\nSelected operation: "))
+    mode = str(input('Select operation: '))
 elif sys.version_info[:3] > (2,5,2):
-    mode = str(raw_input("\nSelected operation: "))
+    mode = str(raw_input('Select operation: '))
 
 if mode == 'h':
     print_help1()
@@ -94,17 +84,17 @@ port_list = serial_ports()
 if (time.time()-t1)>2:
     print('Listing ports is taking unusually long. Try disabling your Bluetooth.')
 
-print('Available serial ports:')
+print('\nWhich ports do you want to read from?')
 for i in range(len(port_list)):
-    print('['+str(i+1)+'] ' + str(port_list[i]))
-print('[h] help\n')
+    print('  ['+str(i+1)+'] ' + str(port_list[i]))
+print('  [h] help')
 
 if sys.version_info[:3] > (3,0):
-    ArduinoPort = input("Selected Arduino port: ")
+    ArduinoPort = input("Select port: ")
     ArduinoPort = ArduinoPort.split(',')
 
 elif sys.version_info[:3] > (2,5,2):
-    ArduinoPort = list(input("Selected Arduino port: "))
+    ArduinoPort = raw_input("Select port(s): ")
 
 nDetectors = len(ArduinoPort)
 port_name_list = []
@@ -116,14 +106,11 @@ if ArduinoPort == 'h':
     print_help1()
     sys.exit()
 
-print("The selected port(s) is(are): ")
-for i in range(nDetectors):	 
-	print('\t['+str(ArduinoPort[i])+']' +port_name_list[i])
 
-# If mode == 1, then record data.
 if mode == 1:
     # Ask for file name:
     cwd = os.getcwd()
+    print('')
     if sys.version_info[:3] > (3,0):
         fname = input("Enter file name (default: "+cwd+"/CW_data.txt):")
     elif sys.version_info[:3] > (2,5,2):
@@ -131,7 +118,7 @@ if mode == 1:
     detector_name_list = []
     if fname == '':
         fname = cwd+"/CW_data.txt"
-    print('Saving data to: '+fname)
+    print(' -- Saving data to: '+fname)
 
     # Make a dictionary for each connected detector
     for i in range(nDetectors):
@@ -143,16 +130,17 @@ if mode == 1:
     # Get list of names, using 5 seconds of data.
     det_names = []
     t1 = time.time()
-    while (time.time()-t1) <5:
+    while (time.time()-t1) < 5:
         for i in range(nDetectors):
             if globals()['Det%s' % str(i)].inWaiting():
                 data = globals()['Det%s' % str(i)].readline().decode().replace('\r\n','')    # Wait and read data 
                 data = data.split("\t")
-                det_names.append(data[-1])
+                det_names.append(data[-2])
                 
-    print("\n-- Detector Names --")
-    for i in set(det_names):
-        print("\t-- "+i)
+    print("\nHere is a list of the detectors I see:")
+    det_names = list(set(det_names))
+    for i in range(len(det_names)):
+        print("  "+str(i+1)+') '+det_names[i])
 
     # Start recording data to file.
     print("\nTaking data ...")
@@ -160,7 +148,6 @@ if mode == 1:
     while True:
         for i in range(nDetectors):
             if globals()['Det%s' % str(i)].inWaiting():
-
                 data = globals()['Det%s' % str(i)].readline().decode().replace('\r\n','')    # Wait and read data 
                 data = data.split("\t")
                 ti = str(datetime.now()).split(" ")
